@@ -6,7 +6,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
@@ -50,7 +49,11 @@ public class FarplaneClient implements ClientModInitializer {
                         }
                 ).bounds(scaledWidth - 110, 10, 100, 20).build();
 
-                Screens.getButtons(screen).add(button);
+                // Try to add using children list
+                screen.children().add(button);
+                screen.renderables.add(button);
+                screen.narratables.add(button);
+                
                 Farplane.LOGGER.info("[FarPlane] Button added to pause menu");
             }
         });
