@@ -23,9 +23,7 @@
       "dev.farplane.client.FarplaneClient"
     ]
   },
-  "mixins": [
-    "farplane.mixins.json"
-  ],
+  "accessWidener": "farplane.accesswidener",
   "depends": {
     "fabricloader": ">=0.19.3",
     "minecraft": "~26.2",
