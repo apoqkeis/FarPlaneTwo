@@ -25,12 +25,13 @@ import dev.farplane.config.FarplaneConfig;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.render.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
  * FarPlane configuration screen with sliders and toggles.
- * Following the original FP2 config GUI approach.
+ * Uses extractRenderState() for 26.2 compatibility.
  *
  * @author FarPlane contributors
  */
@@ -38,12 +39,9 @@ public class FarplaneConfigScreen extends Screen {
     private final Screen parent;
     private final FarplaneConfig config;
 
-    // Edit boxes for numeric values
     private EditBox maxLevelsBox;
     private EditBox cutoffDistanceBox;
     private EditBox terrainThreadsBox;
-
-    // Toggle buttons
     private CycleButton<Boolean> debugPreviewButton;
 
     public FarplaneConfigScreen(Screen parent) {
@@ -59,7 +57,6 @@ public class FarplaneConfigScreen extends Screen {
         int spacing = 30;
         int labelWidth = 120;
         int inputWidth = 60;
-        int buttonWidth = 100;
 
         // --- Render Distance Section ---
         this.addRenderableWidget(Button.builder(
@@ -103,7 +100,7 @@ public class FarplaneConfigScreen extends Screen {
                 btn -> {}
         ).bounds(centerX - 150 + labelWidth + inputWidth + 20, startY, 100, 20).build());
 
-        // Effective Render Distance (calculated)
+        // Effective Render Distance
         startY += spacing;
         int effectiveDistance = config.effectiveRenderDistanceBlocks();
         this.addRenderableWidget(Button.builder(
@@ -146,26 +143,23 @@ public class FarplaneConfigScreen extends Screen {
         // Debug Preview Toggle
         startY += spacing;
         debugPreviewButton = CycleButton.onOffBuilder(config.debugPreview())
-                .create(centerX - 150, startY, buttonWidth, 20,
+                .create(centerX - 150, startY, 100, 20,
                         Component.literal("Debug Preview"));
         this.addRenderableWidget(debugPreviewButton);
 
         // --- Action Buttons ---
         startY += spacing + 20;
 
-        // Save Button
         this.addRenderableWidget(Button.builder(
                 Component.literal("§a§lSave"),
                 btn -> saveConfig()
         ).bounds(centerX - 110, startY, 100, 20).build());
 
-        // Cancel Button
         this.addRenderableWidget(Button.builder(
                 Component.literal("§c§lCancel"),
                 btn -> onClose()
         ).bounds(centerX + 10, startY, 100, 20).build());
 
-        // Reset to Defaults Button
         startY += spacing;
         this.addRenderableWidget(Button.builder(
                 Component.literal("§eReset to Defaults"),
@@ -180,12 +174,10 @@ public class FarplaneConfigScreen extends Screen {
             int terrainThreads = Integer.parseInt(terrainThreadsBox.getValue());
             boolean debugPreview = debugPreviewButton.getValue();
 
-            // Validate ranges
             maxLevels = Math.max(1, Math.min(4, maxLevels));
             cutoffDistance = Math.max(1, Math.min(64, cutoffDistance));
             terrainThreads = Math.max(1, Math.min(8, terrainThreads));
 
-            // Update config
             FarplaneConfig newConfig = new FarplaneConfig();
             newConfig.setMaxLevels(maxLevels);
             newConfig.setCutoffDistance(cutoffDistance);
@@ -196,7 +188,6 @@ public class FarplaneConfigScreen extends Screen {
             Farplane.LOGGER.info("[FarPlane] Config saved: maxLevels={}, cutoffDistance={}, terrainThreads={}, debugPreview={}",
                     maxLevels, cutoffDistance, terrainThreads, debugPreview);
 
-            // Show confirmation
             if (this.minecraft != null && this.minecraft.player != null) {
                 this.minecraft.player.sendSystemMessage(Component.literal("§a[FarPlane] Settings saved!"));
             }
@@ -222,9 +213,8 @@ public class FarplaneConfigScreen extends Screen {
     }
 
     @Override
-    public void render(gui.graphics.GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        this.renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
-        super.render(graphics, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
+        graphics.text(this.font, this.title.getString(), this.width / 2 - this.font.width(this.title) / 2, 15, 0xFFFFFF, true);
     }
 }
