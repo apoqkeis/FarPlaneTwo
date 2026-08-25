@@ -88,9 +88,13 @@ public class VoxelTerrainRenderer {
 
         // Log status periodically
         if (now - lastLogTime > LOG_INTERVAL_MS) {
-            Farplane.LOGGER.info("[FarPlane] Tiles: {} loaded, {} generating",
+            Runtime runtime = Runtime.getRuntime();
+            long usedMB = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+            long maxMB = runtime.maxMemory() / (1024 * 1024);
+            Farplane.LOGGER.info("[FarPlane] Tiles: {} cached, {} pending | Memory: {}MB/{}MB",
                     tileMeshes.size(),
-                    asyncGenerator != null ? "active" : "none");
+                    asyncGenerator != null ? "active" : "none",
+                    usedMB, maxMB);
             lastLogTime = now;
         }
     }

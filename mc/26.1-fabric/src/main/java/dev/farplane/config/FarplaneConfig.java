@@ -43,7 +43,7 @@ public class FarplaneConfig {
     private int maxLevels = 1;
 
     /** Cutoff distance in tiles at the finest LoD level. */
-    private int cutoffDistance = 8;
+    private int cutoffDistance = 4;
 
     // --- Debug / preview ---
     /** Enable the debug height-grid preview (Phase 1 fallback). */
