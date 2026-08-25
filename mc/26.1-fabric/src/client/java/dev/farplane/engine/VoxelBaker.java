@@ -20,18 +20,12 @@
 
 package dev.farplane.engine;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.farplane.client.render.BiomeColorProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +34,7 @@ import static dev.farplane.engine.EngineConstants.*;
 
 /**
  * Bakes voxel tiles into renderable quad geometry.
- * Uses Tesselator/BufferBuilder for 26.2 rendering.
+ * Rendering disabled for 26.2 compat — only generates mesh data.
  *
  * @author DaPorkchop_ (original algorithm)
  */
@@ -66,7 +60,6 @@ public class VoxelBaker {
         TileData data = new TileData();
 
         float scale = 1 << level;
-
         float baseX = pos.minBlockX();
         float baseY = pos.minBlockY();
         float baseZ = pos.minBlockZ();
@@ -80,43 +73,28 @@ public class VoxelBaker {
             int cz = cellPos & T_MASK;
 
             int edges = data.edges;
-            // Fix Y-backwards quirk from FP2
             if ((((edges >> 2) ^ (edges >> 3)) & 1) != 0) {
                 edges ^= EDGE_DIR_MASK << 2;
             }
 
-            // Get block color with biome tinting
             float[] baseColor = getBlockColorWithTint(clientLevel, pos, cx, cy, cz, data);
 
-            // Emit quads for each crossing edge
             for (int edge = 0; edge < EDGE_COUNT; edge++) {
                 int edgeDir = (edges >> (edge << 1)) & EDGE_DIR_MASK;
                 if (edgeDir == EDGE_DIR_NONE) continue;
 
-                // Get the 4 connection vertices for this edge
                 float[] verts = new float[12];
-
                 for (int ci = 0; ci < CONNECTION_INDEX_COUNT; ci++) {
                     int j = CONNECTION_INDICES[edge * CONNECTION_INDEX_COUNT + ci];
-                    int ddx = cx + ((j >> 2) & 1);
-                    int ddy = cy + ((j >> 1) & 1);
-                    int ddz = cz + (j & 1);
-
-                    verts[ci * 3 + 0] = baseX + ddx * scale;
-                    verts[ci * 3 + 1] = baseY + ddy * scale;
-                    verts[ci * 3 + 2] = baseZ + ddz * scale;
+                    verts[ci * 3 + 0] = baseX + (cx + ((j >> 2) & 1)) * scale;
+                    verts[ci * 3 + 1] = baseY + (cy + ((j >> 1) & 1)) * scale;
+                    verts[ci * 3 + 2] = baseZ + (cz + (j & 1)) * scale;
                 }
 
-                // Apply simple directional shading
                 float[] shadedColor = applyDirectionalShading(baseColor, edge);
 
-                // Emit the quad
-                if ((edgeDir & EDGE_DIR_NEGATIVE) != 0) {
-                    addQuad(quads, verts, shadedColor, true);
-                }
-                if ((edgeDir & EDGE_DIR_POSITIVE) != 0) {
-                    addQuad(quads, verts, shadedColor, false);
-                }
+                if ((edgeDir & EDGE_DIR_NEGATIVE) != 0) addQuad(quads, verts, shadedColor, true);
+                if ((edgeDir & EDGE_DIR_POSITIVE) != 0) addQuad(quads, verts, shadedColor, false);
             }
         }
 
@@ -124,100 +102,42 @@ public class VoxelBaker {
     }
 
     private float[] getBlockColorWithTint(ClientLevel level, TilePos pos, int cx, int cy, int cz, TileData data) {
-        if (level == null) {
-            return new float[]{0.5f, 0.5f, 0.5f};
-        }
+        if (level == null) return new float[]{0.5f, 0.5f, 0.5f};
 
         int stateId = 0;
         for (int edge = 0; edge < EDGE_COUNT; edge++) {
-            if (data.states[edge] != 0) {
-                stateId = data.states[edge];
-                break;
-            }
+            if (data.states[edge] != 0) { stateId = data.states[edge]; break; }
         }
-
-        if (stateId == 0) {
-            return new float[]{0.5f, 0.5f, 0.5f};
-        }
+        if (stateId == 0) return new float[]{0.5f, 0.5f, 0.5f};
 
         BlockState state = Block.stateById(stateId);
-        BlockPos blockPos = new BlockPos(
-                pos.minBlockX() + cx,
-                pos.minBlockY() + cy,
-                pos.minBlockZ() + cz
-        );
+        BlockPos blockPos = new BlockPos(pos.minBlockX() + cx, pos.minBlockY() + cy, pos.minBlockZ() + cz);
 
         float[] baseColor = BiomeColorProvider.getBlockColor(state);
         float[] tintColor = BiomeColorProvider.getTintColor(level, blockPos, state, data.biome);
 
-        return new float[]{
-                baseColor[0] * tintColor[0],
-                baseColor[1] * tintColor[1],
-                baseColor[2] * tintColor[2]
-        };
+        return new float[]{ baseColor[0] * tintColor[0], baseColor[1] * tintColor[1], baseColor[2] * tintColor[2] };
     }
 
     private float[] applyDirectionalShading(float[] color, int edge) {
-        float shade;
-        switch (edge) {
-            case 0: shade = 0.8f; break; // X face
-            case 1: shade = 1.0f; break; // Y face (up)
-            case 2: shade = 0.7f; break; // Z face
-            default: shade = 0.9f;
-        }
+        float shade = switch (edge) {
+            case 0 -> 0.8f; case 1 -> 1.0f; case 2 -> 0.7f; default -> 0.9f;
+        };
         return new float[]{ color[0] * shade, color[1] * shade, color[2] * shade };
     }
 
     private void addQuad(List<float[]> quads, float[] verts, float[] color, boolean flip) {
         float r = color[0], g = color[1], b = color[2], a = 1.0f;
-
         if (flip) {
             quads.add(new float[]{
-                    verts[0], verts[1], verts[2], r, g, b, a,
-                    verts[6], verts[7], verts[8], r, g, b, a,
-                    verts[3], verts[4], verts[5], r, g, b, a,
-                    verts[0], verts[1], verts[2], r, g, b, a,
-                    verts[9], verts[10], verts[11], r, g, b, a,
-                    verts[6], verts[7], verts[8], r, g, b, a,
+                    verts[0], verts[1], verts[2], r, g, b, a, verts[6], verts[7], verts[8], r, g, b, a, verts[3], verts[4], verts[5], r, g, b, a,
+                    verts[0], verts[1], verts[2], r, g, b, a, verts[9], verts[10], verts[11], r, g, b, a, verts[6], verts[7], verts[8], r, g, b, a,
             });
         } else {
             quads.add(new float[]{
-                    verts[0], verts[1], verts[2], r, g, b, a,
-                    verts[3], verts[4], verts[5], r, g, b, a,
-                    verts[6], verts[7], verts[8], r, g, b, a,
-                    verts[0], verts[1], verts[2], r, g, b, a,
-                    verts[6], verts[7], verts[8], r, g, b, a,
-                    verts[9], verts[10], verts[11], r, g, b, a,
+                    verts[0], verts[1], verts[2], r, g, b, a, verts[3], verts[4], verts[5], r, g, b, a, verts[6], verts[7], verts[8], r, g, b, a,
+                    verts[0], verts[1], verts[2], r, g, b, a, verts[6], verts[7], verts[8], r, g, b, a, verts[9], verts[10], verts[11], r, g, b, a,
             });
         }
-    }
-
-    /**
-     * Renders a baked mesh using Tesselator/BufferBuilder (26.2 API).
-     */
-    public static void renderMesh(BakedMesh mesh, PoseStack poseStack, double camX, double camY, double camZ) {
-        if (mesh.isEmpty()) return;
-
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-
-        Matrix4f matrix = poseStack.last().pose();
-
-        for (float[] quad : mesh.quads()) {
-            for (int v = 0; v < 6; v++) {
-                int off = v * 7;
-                float x = quad[off] - (float) camX;
-                float y = quad[off + 1] - (float) camY;
-                float z = quad[off + 2] - (float) camZ;
-                float r = quad[off + 3];
-                float g = quad[off + 4];
-                float b = quad[off + 5];
-                float a = quad[off + 6];
-
-                buffer.addVertex(matrix, x, y, z).setColor(r, g, b, a);
-            }
-        }
-
-        tesselator.end();
     }
 }
