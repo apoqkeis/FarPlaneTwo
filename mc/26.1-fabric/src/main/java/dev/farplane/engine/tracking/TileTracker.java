@@ -210,6 +210,10 @@ public class TileTracker {
     private Set<TilePos> computeVisiblePositions(double playerX, double playerY, double playerZ, int maxLevels, int cutoff) {
         Set<TilePos> positions = new HashSet<>();
 
+        // Cap values to prevent OOM
+        maxLevels = Math.min(maxLevels, 2);
+        cutoff = Math.min(cutoff, 16);
+
         int playerTileX = (int) Math.floor(playerX) >> T_SHIFT;
         int playerTileY = (int) Math.floor(playerY) >> T_SHIFT;
         int playerTileZ = (int) Math.floor(playerZ) >> T_SHIFT;
