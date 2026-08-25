@@ -71,6 +71,12 @@ public class FarplaneConfig {
     public int terrainThreads() { return terrainThreads; }
     public int bakeThreads() { return bakeThreads; }
 
+    // --- Setters ---
+    public void setMaxLevels(int maxLevels) { this.maxLevels = maxLevels; }
+    public void setCutoffDistance(int cutoffDistance) { this.cutoffDistance = cutoffDistance; }
+    public void setDebugPreview(boolean debugPreview) { this.debugPreview = debugPreview; }
+    public void setTerrainThreads(int terrainThreads) { this.terrainThreads = terrainThreads; }
+
     /**
      * Computes the effective render distance in blocks.
      * Formula: cutoffDistance << (maxLevels - 1)
