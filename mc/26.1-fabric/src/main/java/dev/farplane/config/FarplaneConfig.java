@@ -40,10 +40,10 @@ public class FarplaneConfig {
 
     // --- Terrain generation ---
     /** Maximum number of LoD levels (1 = LoD 0 only). */
-    private int maxLevels = 3;
+    private int maxLevels = 1;
 
     /** Cutoff distance in tiles at the finest LoD level. */
-    private int cutoffDistance = 256;
+    private int cutoffDistance = 8;
 
     // --- Debug / preview ---
     /** Enable the debug height-grid preview (Phase 1 fallback). */

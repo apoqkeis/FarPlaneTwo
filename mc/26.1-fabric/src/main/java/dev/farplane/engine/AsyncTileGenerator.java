@@ -51,7 +51,8 @@ public class AsyncTileGenerator {
 
     // Callback when a tile is ready
     private Consumer<TilePos> onTileReady;
-    private int maxConcurrentGenerations = 4; // Limit concurrent generations
+    private int maxConcurrentGenerations = 2; // Limit concurrent generations
+    private int maxCachedTiles = 64; // Limit cached tiles to save memory
 
     public AsyncTileGenerator(FarplaneConfig config, TileStorage storage, Level level) {
         this.config = config;
@@ -115,6 +116,11 @@ public class AsyncTileGenerator {
         future.thenAccept(tile -> {
             pendingGenerations.remove(pos);
             if (tile != null && !tile.isEmpty()) {
+                // Limit cache size to avoid OOM
+                if (tileCache.size() >= maxCachedTiles) {
+                    // Don't cache more tiles
+                    return;
+                }
                 tileCache.put(pos, tile);
 
                 // Save to disk asynchronously
